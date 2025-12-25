@@ -1,9 +1,12 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import auth from '@react-native-firebase/auth';
 
 type AuthContextType = {
   isAuthenticated: boolean;
-  login: () => void;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  loading: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -14,13 +17,28 @@ type AuthProviderProps = {
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const login = () => {
-    setIsAuthenticated(true);
+  // 🔹 Restore auth state on app start
+  useEffect(() => {
+    const unsubscribe = auth().onAuthStateChanged(user => {
+      setIsAuthenticated(!!user);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    await auth().signInWithEmailAndPassword(email, password);
   };
 
-  const logout = () => {
-    setIsAuthenticated(false);
+  const signup = async (email: string, password: string) => {
+    await auth().createUserWithEmailAndPassword(email, password);
+  };
+
+  const logout = async () => {
+    await auth().signOut();
   };
 
   return (
@@ -28,7 +46,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       value={{
         isAuthenticated,
         login,
+        signup,
         logout,
+        loading,
       }}
     >
       {children}
