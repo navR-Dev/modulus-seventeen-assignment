@@ -2,11 +2,11 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import HomeScreen from '../screens/HomeScreen';
-import AddNoteScreen from '../screens/AddNoteScreen';
+import AddNoteScreen from '../screens/AddListScreen';
 
 export type AppStackParamList = {
     Home: undefined;
-    AddNote: undefined;
+    AddList: undefined;
 };
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
@@ -20,9 +20,9 @@ const AppStack = () => {
           options={{ title: 'My Notes' }}
         />
         <Stack.Screen
-          name="AddNote"
+          name="AddList"
           component={AddNoteScreen}
-          options={{ title: 'Add Note' }}
+          options={{ title: 'Add ToDo List' }}
         />
       </Stack.Navigator>
     );

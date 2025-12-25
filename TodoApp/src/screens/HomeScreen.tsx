@@ -15,8 +15,8 @@ const HomeScreen = ({ navigation }: Props) => {
       <Text style={styles.title}>Home Screen</Text>
 
       <Button
-        title="Add Note"
-        onPress={() => navigation.navigate('AddNote')}
+        title="Add List"
+        onPress={() => navigation.navigate('AddList')}
       />
 
       <Button
