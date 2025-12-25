@@ -11,6 +11,9 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import uuid from 'react-native-uuid';
 
+import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
+
 import { AppStackParamList } from '../navigation/AppStack';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'AddList'>;
@@ -29,10 +32,10 @@ const AddListScreen = ({ navigation }: Props) => {
   // List state
   const [listTitle, setListTitle] = useState('');
 
-  // Tasks state
+  // Tasks
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  // New task input state
+  // New task input
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
   const [taskDeadline, setTaskDeadline] = useState('');
@@ -42,19 +45,26 @@ const AddListScreen = ({ navigation }: Props) => {
   const addTask = () => {
     if (!taskTitle.trim()) return;
 
+    // Build task object WITHOUT undefined fields
     const newTask: Task = {
       id: uuid.v4().toString(),
       title: taskTitle.trim(),
-      description: taskDescription.trim() || undefined,
       createdAt: new Date().toISOString(),
-      deadline: taskDeadline || undefined,
       priority: taskPriority,
       completed: false,
     };
 
+    if (taskDescription.trim()) {
+      newTask.description = taskDescription.trim();
+    }
+
+    if (taskDeadline.trim()) {
+      newTask.deadline = taskDeadline.trim();
+    }
+
     setTasks(prev => [...prev, newTask]);
 
-    // Reset task inputs
+    // Reset inputs
     setTaskTitle('');
     setTaskDescription('');
     setTaskDeadline('');
@@ -65,17 +75,27 @@ const AddListScreen = ({ navigation }: Props) => {
     setTasks(prev => prev.filter(task => task.id !== id));
   };
 
-  const saveList = () => {
+  const saveList = async () => {
     if (!listTitle.trim() || tasks.length === 0) return;
 
-    const newList = {
-      title: listTitle.trim(),
-      tasks,
-    };
+    const user = auth().currentUser;
+    if (!user) {
+      console.error('No authenticated user');
+      return;
+    }
 
-    console.log('New List:', newList);
+    try {
+      await firestore().collection('lists').add({
+        title: listTitle.trim(),
+        tasks,
+        userId: user.uid,
+        createdAt: firestore.FieldValue.serverTimestamp(),
+      });
 
-    navigation.goBack();
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error saving list:', error);
+    }
   };
 
   return (
@@ -85,11 +105,11 @@ const AddListScreen = ({ navigation }: Props) => {
       <TextInput
         value={listTitle}
         onChangeText={setListTitle}
-        placeholder="e.g. Work, Personal, College"
+        placeholder="e.g. Work, Personal"
         style={styles.input}
       />
 
-      {/* Add Task */}
+      {/* Add task */}
       <Text style={styles.sectionTitle}>Add Task</Text>
 
       <TextInput
@@ -113,7 +133,7 @@ const AddListScreen = ({ navigation }: Props) => {
         style={styles.input}
       />
 
-      {/* Priority selector */}
+      {/* Priority */}
       <View style={styles.priorityRow}>
         {(['low', 'medium', 'high'] as const).map(p => (
           <TouchableOpacity
@@ -131,7 +151,7 @@ const AddListScreen = ({ navigation }: Props) => {
 
       <Button title="Add Task" onPress={addTask} />
 
-      {/* Task list */}
+      {/* Tasks list */}
       <Text style={styles.sectionTitle}>Tasks</Text>
 
       <FlatList
