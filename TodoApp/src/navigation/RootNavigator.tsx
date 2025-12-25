@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-
+import React from 'react';
 import AuthStack from './AuthStack';
 import AppStack from './AppStack';
+import { useAuth } from '../context/AuthContext';
 
 const RootNavigator = () => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    return isAuthenticated ? <AppStack /> : <AuthStack />;
+  const { isAuthenticated } = useAuth();
+
+  return isAuthenticated ? <AppStack /> : <AuthStack />;
 };
 
 export default RootNavigator;
