@@ -53,7 +53,7 @@ const ListItem = ({
     now.getDate()
   ).getTime();
 
-  const TWO_DAYS = 1000 * 60 * 60 * 48;
+  const DAY = 1000 * 60 * 60 * 24;
 
   const handlePress = () => {
     if (selectionMode) {
@@ -66,7 +66,7 @@ const ListItem = ({
   return (
     <Pressable
       style={[
-        styles.container,
+        styles.card,
         selected && styles.selected,
       ]}
       onPress={handlePress}
@@ -84,7 +84,7 @@ const ListItem = ({
       {!expanded && (
         <>
           <Text style={styles.meta}>
-            {completed}/{total} tasks
+            {completed} of {total} completed
           </Text>
 
           <View style={styles.progressTrack}>
@@ -102,66 +102,81 @@ const ListItem = ({
       {expanded && (
         <View style={styles.tasks}>
           {list.tasks.map(task => {
-            const isOverdue =
-              task.dueDate !== null &&
-              task.dueDate < today &&
-              !task.done;
+            let badge: string | null = null;
+            let badgeStyle = null;
+            let dateStyle = null;
 
-            const isDueSoon =
-              task.dueDate !== null &&
-              task.dueDate >= today &&
-              task.dueDate <= today + TWO_DAYS &&
-              !task.done;
+            if (task.dueDate && !task.done) {
+              const daysUntilDue = Math.floor(
+                (task.dueDate - today) / DAY
+              );
+
+              if (daysUntilDue < 0) {
+                badge = 'OVERDUE';
+                badgeStyle = styles.overdue;
+                dateStyle = styles.overdueText;
+              } else if (daysUntilDue === 0) {
+                badge = 'TODAY';
+                badgeStyle = styles.today;
+                dateStyle = styles.todayText;
+              } else if (daysUntilDue === 1) {
+                badge = 'TOMORROW';
+                badgeStyle = styles.tomorrow;
+                dateStyle = styles.tomorrowText;
+              } else if (daysUntilDue <= 5) {
+                badge = 'SOON';
+                badgeStyle = styles.soon;
+                dateStyle = styles.soonText;
+              }
+            }
 
             return (
               <Pressable
                 key={task.id}
-                style={styles.task}
+                style={styles.taskRow}
                 onPress={() => onToggleTask(task.id)}
               >
-                <View style={styles.taskHeader}>
-                  <Text
-                    style={[
-                      styles.taskTitle,
-                      task.done && styles.taskDone,
-                    ]}
-                  >
-                    {task.title}
-                  </Text>
-
-                  {isOverdue && (
-                    <Text style={styles.overdue}>
-                      OVERDUE
-                    </Text>
-                  )}
-
-                  {!isOverdue && isDueSoon && (
-                    <Text style={styles.dueSoon}>
-                      DUE SOON
-                    </Text>
-                  )}
+                <View style={styles.checkbox}>
+                  {task.done && <View style={styles.checkboxInner} />}
                 </View>
 
-                {task.description ? (
-                  <Text style={styles.taskDescription}>
-                    {task.description}
-                  </Text>
-                ) : null}
+                <View style={styles.taskContent}>
+                  <View style={styles.taskHeader}>
+                    <Text
+                      style={[
+                        styles.taskTitle,
+                        task.done && styles.taskDone,
+                      ]}
+                    >
+                      {task.title}
+                    </Text>
 
-                {task.dueDate ? (
-                  <Text
-                    style={[
-                      styles.taskDue,
-                      isOverdue && styles.overdueText,
-                      isDueSoon && styles.dueSoonText,
-                    ]}
-                  >
-                    Due:{' '}
-                    {new Date(task.dueDate)
-                      .toISOString()
-                      .slice(0, 10)}
-                  </Text>
-                ) : null}
+                    {badge && (
+                      <Text style={badgeStyle}>
+                        {badge}
+                      </Text>
+                    )}
+                  </View>
+
+                  {task.description ? (
+                    <Text style={styles.taskDescription}>
+                      {task.description}
+                    </Text>
+                  ) : null}
+
+                  {task.dueDate ? (
+                    <Text
+                      style={[
+                        styles.taskDue,
+                        dateStyle,
+                      ]}
+                    >
+                      Due {new Date(task.dueDate)
+                        .toISOString()
+                        .slice(0, 10)}
+                    </Text>
+                  ) : null}
+                </View>
               </Pressable>
             );
           })}
@@ -176,88 +191,133 @@ export default ListItem;
 /* ---------------- Styles ---------------- */
 
 const styles = StyleSheet.create({
-  container: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 6,
-    padding: 12,
-    marginBottom: 10,
+  card: {
     backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   selected: {
     backgroundColor: '#e3f2fd',
-    borderColor: '#2196F3',
   },
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   title: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
   },
   menu: {
-    fontSize: 18,
-    paddingHorizontal: 6,
+    fontSize: 20,
+    paddingHorizontal: 8,
   },
+
   meta: {
+    marginTop: 8,
+    fontSize: 13,
     color: '#666',
-    marginTop: 6,
   },
+
   progressTrack: {
-    height: 6,
+    height: 8,
     backgroundColor: '#eee',
-    borderRadius: 3,
-    marginTop: 6,
+    borderRadius: 4,
+    marginTop: 10,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: '#4caf50',
+    borderRadius: 4,
   },
+
   tasks: {
-    marginTop: 10,
+    marginTop: 14,
   },
-  task: {
-    marginBottom: 12,
+
+  taskRow: {
+    flexDirection: 'row',
+    marginBottom: 14,
   },
+
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#4caf50',
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 3,
+    backgroundColor: '#4caf50',
+  },
+
+  taskContent: {
+    flex: 1,
+  },
+
   taskHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
   },
+
   taskTitle: {
-    fontSize: 14,
-    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
   },
   taskDone: {
     textDecorationLine: 'line-through',
-    color: '#777',
+    color: '#888',
   },
+
   taskDescription: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#555',
     marginTop: 2,
   },
+
   taskDue: {
     fontSize: 12,
     marginTop: 2,
   },
+
   overdue: {
     color: '#d32f2f',
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 11,
   },
-  dueSoon: {
-    color: '#f57c00',
-    fontWeight: 'bold',
+  today: {
+    color: '#e53935',
+    fontWeight: '700',
     fontSize: 11,
   },
-  overdueText: {
-    color: '#d32f2f',
+  tomorrow: {
+    color: '#fb8c00',
+    fontWeight: '700',
+    fontSize: 11,
   },
-  dueSoonText: {
-    color: '#f57c00',
+  soon: {
+    color: '#fbc02d',
+    fontWeight: '700',
+    fontSize: 11,
   },
+
+  overdueText: { color: '#d32f2f' },
+  todayText: { color: '#e53935' },
+  tomorrowText: { color: '#fb8c00' },
+  soonText: { color: '#fbc02d' },
 });
