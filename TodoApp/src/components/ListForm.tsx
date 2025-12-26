@@ -8,14 +8,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Pressable,
 } from 'react-native';
 
 export type TaskInput = {
   id: string;
   title: string;
   description: string;
-  dueDate: number | null;     // stored value (timestamp)
-  dueDateText: string;        // raw user input
+  dueDate: number | null;
+  dueDateText: string;
   priority: 'low' | 'medium' | 'high';
   done: boolean;
 };
@@ -56,6 +57,10 @@ const ListForm = ({
         done: false,
       },
     ]);
+  };
+
+  const removeTask = (id: string) => {
+    setTasks(prev => prev.filter(task => task.id !== id));
   };
 
   const updateTaskField = <K extends keyof TaskInput>(
@@ -115,6 +120,16 @@ const ListForm = ({
 
         {tasks.map(task => (
           <View key={task.id} style={styles.taskCard}>
+            <View style={styles.taskHeader}>
+              <Text style={styles.taskLabel}>Task</Text>
+              <Text
+                style={styles.remove}
+                onPress={() => removeTask(task.id)}
+              >
+                Remove
+              </Text>
+            </View>
+
             <TextInput
               style={styles.input}
               placeholder="Task name"
@@ -205,6 +220,18 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 12,
     borderRadius: 6,
+  },
+  taskHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  taskLabel: {
+    fontWeight: 'bold',
+  },
+  remove: {
+    color: '#d32f2f',
+    fontWeight: 'bold',
   },
   priorityRow: {
     flexDirection: 'row',

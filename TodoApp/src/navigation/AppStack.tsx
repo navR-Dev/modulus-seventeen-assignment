@@ -26,7 +26,7 @@ const AppStack = () => {
           component={AddNoteScreen}
           options={{ title: 'Add ToDo List' }}
         />
-        <Stack.Screen name="EditList" component={EditListScreen} />
+        <Stack.Screen name="EditList" component={EditListScreen} options={{ title: 'Edit List' }}/>
       </Stack.Navigator>
     );
 };

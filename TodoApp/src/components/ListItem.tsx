@@ -46,6 +46,15 @@ const ListItem = ({
   const total = list.tasks.length;
   const progress = total === 0 ? 0 : completed / total;
 
+  const now = new Date();
+  const today = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  ).getTime();
+
+  const TWO_DAYS = 1000 * 60 * 60 * 48;
+
   const handlePress = () => {
     if (selectionMode) {
       onToggleSelect();
@@ -71,7 +80,7 @@ const ListItem = ({
         </Text>
       </View>
 
-      {/* Collapsed view */}
+      {/* Collapsed */}
       {!expanded && (
         <>
           <Text style={styles.meta}>
@@ -89,40 +98,73 @@ const ListItem = ({
         </>
       )}
 
-      {/* Expanded view */}
+      {/* Expanded */}
       {expanded && (
         <View style={styles.tasks}>
-          {list.tasks.map(task => (
-            <Pressable
-              key={task.id}
-              style={styles.task}
-              onPress={() => onToggleTask(task.id)}
-            >
-              <Text
-                style={[
-                  styles.taskTitle,
-                  task.done && styles.taskDone,
-                ]}
+          {list.tasks.map(task => {
+            const isOverdue =
+              task.dueDate !== null &&
+              task.dueDate < today &&
+              !task.done;
+
+            const isDueSoon =
+              task.dueDate !== null &&
+              task.dueDate >= today &&
+              task.dueDate <= today + TWO_DAYS &&
+              !task.done;
+
+            return (
+              <Pressable
+                key={task.id}
+                style={styles.task}
+                onPress={() => onToggleTask(task.id)}
               >
-                {task.title}
-              </Text>
+                <View style={styles.taskHeader}>
+                  <Text
+                    style={[
+                      styles.taskTitle,
+                      task.done && styles.taskDone,
+                    ]}
+                  >
+                    {task.title}
+                  </Text>
 
-              {task.description ? (
-                <Text style={styles.taskDescription}>
-                  {task.description}
-                </Text>
-              ) : null}
+                  {isOverdue && (
+                    <Text style={styles.overdue}>
+                      OVERDUE
+                    </Text>
+                  )}
 
-              {task.dueDate ? (
-                <Text style={styles.taskDue}>
-                  Due:{' '}
-                  {new Date(task.dueDate)
-                    .toISOString()
-                    .slice(0, 10)}
-                </Text>
-              ) : null}
-            </Pressable>
-          ))}
+                  {!isOverdue && isDueSoon && (
+                    <Text style={styles.dueSoon}>
+                      DUE SOON
+                    </Text>
+                  )}
+                </View>
+
+                {task.description ? (
+                  <Text style={styles.taskDescription}>
+                    {task.description}
+                  </Text>
+                ) : null}
+
+                {task.dueDate ? (
+                  <Text
+                    style={[
+                      styles.taskDue,
+                      isOverdue && styles.overdueText,
+                      isDueSoon && styles.dueSoonText,
+                    ]}
+                  >
+                    Due:{' '}
+                    {new Date(task.dueDate)
+                      .toISOString()
+                      .slice(0, 10)}
+                  </Text>
+                ) : null}
+              </Pressable>
+            );
+          })}
         </View>
       )}
     </Pressable>
@@ -178,10 +220,16 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   task: {
-    marginBottom: 10,
+    marginBottom: 12,
+  },
+  taskHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   taskTitle: {
     fontSize: 14,
+    flex: 1,
   },
   taskDone: {
     textDecorationLine: 'line-through',
@@ -194,7 +242,22 @@ const styles = StyleSheet.create({
   },
   taskDue: {
     fontSize: 12,
-    color: '#d32f2f',
     marginTop: 2,
+  },
+  overdue: {
+    color: '#d32f2f',
+    fontWeight: 'bold',
+    fontSize: 11,
+  },
+  dueSoon: {
+    color: '#f57c00',
+    fontWeight: 'bold',
+    fontSize: 11,
+  },
+  overdueText: {
+    color: '#d32f2f',
+  },
+  dueSoonText: {
+    color: '#f57c00',
   },
 });
