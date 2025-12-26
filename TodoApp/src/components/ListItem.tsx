@@ -2,11 +2,24 @@ import React from 'react';
 import {
   View,
   Text,
-  Pressable,
   StyleSheet,
+  Pressable,
 } from 'react-native';
 
-import { List } from '../screens/HomeScreen';
+type Task = {
+  id: string;
+  title: string;
+  description: string;
+  dueDate: number | null;
+  priority: 'low' | 'medium' | 'high';
+  done: boolean;
+};
+
+type List = {
+  id: string;
+  title: string;
+  tasks: Task[];
+};
 
 type Props = {
   list: List;
@@ -29,73 +42,159 @@ const ListItem = ({
   onToggleSelect,
   onOpenMenu,
 }: Props) => {
-  return (
-    <View style={[styles.card, selected && styles.selected]}>
-      {/* Header */}
-      <Pressable
-        style={styles.header}
-        onPress={selectionMode ? onToggleSelect : onToggleExpand}
-      >
-        <Text style={styles.title}>{list.title}</Text>
-        <Text onPress={onOpenMenu} style={styles.menu}>⋮</Text>
-      </Pressable>
+  const completed = list.tasks.filter(t => t.done).length;
+  const total = list.tasks.length;
+  const progress = total === 0 ? 0 : completed / total;
 
-      {/* Expanded content */}
+  const handlePress = () => {
+    if (selectionMode) {
+      onToggleSelect();
+    } else {
+      onToggleExpand();
+    }
+  };
+
+  return (
+    <Pressable
+      style={[
+        styles.container,
+        selected && styles.selected,
+      ]}
+      onPress={handlePress}
+      onLongPress={onToggleSelect}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>{list.title}</Text>
+        <Text style={styles.menu} onPress={onOpenMenu}>
+          ⋮
+        </Text>
+      </View>
+
+      {/* Collapsed view */}
+      {!expanded && (
+        <>
+          <Text style={styles.meta}>
+            {completed}/{total} tasks
+          </Text>
+
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${progress * 100}%` },
+              ]}
+            />
+          </View>
+        </>
+      )}
+
+      {/* Expanded view */}
       {expanded && (
         <View style={styles.tasks}>
-          {list.tasks.length === 0 && (
-            <Text style={styles.empty}>No tasks</Text>
-          )}
-
           {list.tasks.map(task => (
             <Pressable
               key={task.id}
+              style={styles.task}
               onPress={() => onToggleTask(task.id)}
             >
-              <Text style={task.done && styles.done}>
-                ☐ {task.title}
+              <Text
+                style={[
+                  styles.taskTitle,
+                  task.done && styles.taskDone,
+                ]}
+              >
+                {task.title}
               </Text>
+
+              {task.description ? (
+                <Text style={styles.taskDescription}>
+                  {task.description}
+                </Text>
+              ) : null}
+
+              {task.dueDate ? (
+                <Text style={styles.taskDue}>
+                  Due:{' '}
+                  {new Date(task.dueDate)
+                    .toISOString()
+                    .slice(0, 10)}
+                </Text>
+              ) : null}
             </Pressable>
           ))}
         </View>
       )}
-    </View>
+    </Pressable>
   );
 };
 
 export default ListItem;
 
+/* ---------------- Styles ---------------- */
+
 const styles = StyleSheet.create({
-  card: {
+  container: {
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 6,
-    marginBottom: 8,
-    padding: 8,
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: '#fff',
   },
   selected: {
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#e3f2fd',
+    borderColor: '#2196F3',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: {
-    fontWeight: 'bold',
     fontSize: 16,
+    fontWeight: 'bold',
   },
   menu: {
     fontSize: 18,
+    paddingHorizontal: 6,
+  },
+  meta: {
+    color: '#666',
+    marginTop: 6,
+  },
+  progressTrack: {
+    height: 6,
+    backgroundColor: '#eee',
+    borderRadius: 3,
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#4caf50',
   },
   tasks: {
-    marginTop: 8,
+    marginTop: 10,
   },
-  empty: {
-    fontStyle: 'italic',
-    color: '#777',
+  task: {
+    marginBottom: 10,
   },
-  done: {
+  taskTitle: {
+    fontSize: 14,
+  },
+  taskDone: {
     textDecorationLine: 'line-through',
     color: '#777',
+  },
+  taskDescription: {
+    fontSize: 12,
+    color: '#555',
+    marginTop: 2,
+  },
+  taskDue: {
+    fontSize: 12,
+    color: '#d32f2f',
+    marginTop: 2,
   },
 });

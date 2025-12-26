@@ -5,11 +5,18 @@ import {
   TextInput,
   Button,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 
 export type TaskInput = {
   id: string;
   title: string;
+  description: string;
+  dueDate: number | null;     // stored value (timestamp)
+  dueDateText: string;        // raw user input
+  priority: 'low' | 'medium' | 'high';
   done: boolean;
 };
 
@@ -27,7 +34,14 @@ const ListForm = ({
   onSubmit,
 }: Props) => {
   const [title, setTitle] = useState(initialTitle);
-  const [tasks, setTasks] = useState<TaskInput[]>(initialTasks);
+  const [tasks, setTasks] = useState<TaskInput[]>(
+    initialTasks.map(t => ({
+      ...t,
+      dueDateText: t.dueDate
+        ? new Date(t.dueDate).toISOString().slice(0, 10)
+        : '',
+    }))
+  );
 
   const addTask = () => {
     setTasks(prev => [
@@ -35,15 +49,23 @@ const ListForm = ({
       {
         id: Date.now().toString(),
         title: '',
+        description: '',
+        dueDate: null,
+        dueDateText: '',
+        priority: 'medium',
         done: false,
       },
     ]);
   };
 
-  const updateTaskTitle = (id: string, value: string) => {
+  const updateTaskField = <K extends keyof TaskInput>(
+    id: string,
+    field: K,
+    value: TaskInput[K]
+  ) => {
     setTasks(prev =>
       prev.map(task =>
-        task.id === id ? { ...task, title: value } : task
+        task.id === id ? { ...task, [field]: value } : task
       )
     );
   };
@@ -51,59 +73,153 @@ const ListForm = ({
   const submit = async () => {
     if (!title.trim()) return;
 
-    await onSubmit(
-      title.trim(),
-      tasks.filter(t => t.title.trim())
-    );
+    const cleanedTasks = tasks
+      .filter(t => t.title.trim())
+      .map(t => {
+        let dueDate: number | null = null;
+
+        if (t.dueDateText) {
+          const parsed = Date.parse(t.dueDateText);
+          if (!isNaN(parsed)) {
+            dueDate = parsed;
+          }
+        }
+
+        return {
+          ...t,
+          dueDate,
+        };
+      });
+
+    await onSubmit(title.trim(), cleanedTasks);
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>List Title</Text>
-      <TextInput
-        style={styles.input}
-        value={title}
-        onChangeText={setTitle}
-        placeholder="List title"
-      />
-
-      <Text style={styles.label}>Tasks</Text>
-
-      {tasks.map(task => (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.label}>List Title</Text>
         <TextInput
-          key={task.id}
           style={styles.input}
-          placeholder="Task title"
-          value={task.title}
-          onChangeText={text =>
-            updateTaskTitle(task.id, text)
-          }
+          placeholder="List title"
+          value={title}
+          onChangeText={setTitle}
         />
-      ))}
 
-      <Button title="Add Task" onPress={addTask} />
-      <View style={{ height: 16 }} />
-      <Button title={submitLabel} onPress={submit} />
-    </View>
+        <Text style={styles.label}>Tasks</Text>
+
+        {tasks.map(task => (
+          <View key={task.id} style={styles.taskCard}>
+            <TextInput
+              style={styles.input}
+              placeholder="Task name"
+              value={task.title}
+              onChangeText={text =>
+                updateTaskField(task.id, 'title', text)
+              }
+            />
+
+            <TextInput
+              style={[styles.input, styles.multiline]}
+              placeholder="Description (optional)"
+              multiline
+              value={task.description}
+              onChangeText={text =>
+                updateTaskField(task.id, 'description', text)
+              }
+            />
+
+            <Text style={styles.subLabel}>Priority</Text>
+            <View style={styles.priorityRow}>
+              {(['low', 'medium', 'high'] as const).map(p => (
+                <Text
+                  key={p}
+                  style={[
+                    styles.priority,
+                    task.priority === p &&
+                      styles.prioritySelected,
+                  ]}
+                  onPress={() =>
+                    updateTaskField(task.id, 'priority', p)
+                  }
+                >
+                  {p.toUpperCase()}
+                </Text>
+              ))}
+            </View>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Due date (YYYY-MM-DD)"
+              value={task.dueDateText}
+              onChangeText={text =>
+                updateTaskField(task.id, 'dueDateText', text)
+              }
+            />
+          </View>
+        ))}
+
+        <Button title="Add Task" onPress={addTask} />
+        <View style={{ height: 16 }} />
+        <Button title={submitLabel} onPress={submit} />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 export default ListForm;
 
+/* ---------------- Styles ---------------- */
+
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     padding: 16,
   },
   label: {
     fontWeight: 'bold',
     marginBottom: 8,
   },
+  subLabel: {
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
     padding: 10,
-    marginBottom: 12,
+    marginBottom: 10,
     borderRadius: 4,
+  },
+  multiline: {
+    height: 60,
+    textAlignVertical: 'top',
+  },
+  taskCard: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 10,
+    marginBottom: 12,
+    borderRadius: 6,
+  },
+  priorityRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  priority: {
+    marginRight: 8,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: '#aaa',
+    borderRadius: 4,
+  },
+  prioritySelected: {
+    backgroundColor: '#2196F3',
+    color: '#fff',
+    borderColor: '#2196F3',
   },
 });

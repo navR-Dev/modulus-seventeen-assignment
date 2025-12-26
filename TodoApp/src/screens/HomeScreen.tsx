@@ -13,12 +13,16 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { AppStackParamList } from '../navigation/AppStack';
 import ListItem from '../components/ListItem';
+import { useAuth } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Home'>;
 
 export type Task = {
   id: string;
   title: string;
+  description: string;
+  dueDate: number | null;
+  priority: 'low' | 'medium' | 'high';
   done: boolean;
 };
 
@@ -29,13 +33,13 @@ export type List = {
 };
 
 const HomeScreen = ({ navigation }: Props) => {
+  const { logout } = useAuth();
+
   const [lists, setLists] = useState<List[]>([]);
   const [expandedListId, setExpandedListId] = useState<string | null>(null);
 
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  /* ---------------- Firestore subscription ---------------- */
 
   useEffect(() => {
     const user = auth().currentUser;
@@ -45,27 +49,20 @@ const HomeScreen = ({ navigation }: Props) => {
       .collection('lists')
       .where('userId', '==', user.uid)
       .orderBy('createdAt', 'desc')
-      .onSnapshot(
-        snapshot => {
-          const data: List[] = snapshot.docs.map(doc => {
-            const d = doc.data();
-            return {
-              id: doc.id,
-              title: d.title,
-              tasks: d.tasks ?? [],
-            };
-          });
-          setLists(data);
-        },
-        error => {
-          console.error('Firestore read error:', error);
-        }
-      );
+      .onSnapshot(snapshot => {
+        const data: List[] = snapshot.docs.map(doc => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            title: d.title,
+            tasks: d.tasks ?? [],
+          };
+        });
+        setLists(data);
+      });
 
     return unsubscribe;
   }, []);
-
-  /* ---------------- Helpers ---------------- */
 
   const toggleExpand = (id: string) => {
     setExpandedListId(prev => (prev === id ? null : id));
@@ -101,11 +98,7 @@ const HomeScreen = ({ navigation }: Props) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
-
-      if (next.size === 0) {
-        setSelectionMode(false);
-      }
-
+      if (next.size === 0) setSelectionMode(false);
       return next;
     });
   };
@@ -153,11 +146,16 @@ const HomeScreen = ({ navigation }: Props) => {
     );
   };
 
-  /* ---------------- UI ---------------- */
-
   return (
     <View style={styles.container}>
-      {/* Add List button — ALWAYS visible */}
+      {/* Top bar */}
+      <View style={styles.topBar}>
+        <Text style={styles.logout} onPress={logout}>
+          Logout
+        </Text>
+      </View>
+
+      {/* Add List */}
       <Pressable
         style={styles.addButton}
         onPress={() => navigation.navigate('AddList')}
@@ -178,7 +176,7 @@ const HomeScreen = ({ navigation }: Props) => {
         </View>
       )}
 
-      {/* Empty state OR list */}
+      {/* Content */}
       {lists.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>
@@ -217,6 +215,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 12,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 6,
+  },
+  logout: {
+    color: '#d32f2f',
+    fontWeight: 'bold',
   },
   addButton: {
     backgroundColor: '#2196F3',
