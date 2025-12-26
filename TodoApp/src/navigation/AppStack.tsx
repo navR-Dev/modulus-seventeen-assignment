@@ -19,12 +19,11 @@ const AppStack = () => {
         <Stack.Screen
           name="Home"
           component={HomeScreen}
-          options={{ title: 'My Notes' }}
         />
         <Stack.Screen
           name="AddList"
           component={AddNoteScreen}
-          options={{ title: 'Add ToDo List' }}
+          options={{ title: 'Add List' }}
         />
         <Stack.Screen name="EditList" component={EditListScreen} options={{ title: 'Edit List' }}/>
       </Stack.Navigator>

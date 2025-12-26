@@ -13,6 +13,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { AppStackParamList } from '../navigation/AppStack';
 import ListItem from '../components/ListItem';
+import ListActionSheet from '../components/ListActionSheet';
 import { useAuth } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Home'>;
@@ -40,6 +41,10 @@ const HomeScreen = ({ navigation }: Props) => {
 
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // 🔹 Action sheet state
+  const [actionSheetVisible, setActionSheetVisible] = useState(false);
+  const [activeListId, setActiveListId] = useState<string | null>(null);
 
   useEffect(() => {
     const user = auth().currentUser;
@@ -127,41 +132,38 @@ const HomeScreen = ({ navigation }: Props) => {
     );
   };
 
+  // 🔹 Action sheet handlers
   const openMenu = (listId: string) => {
-    Alert.alert(
-      'Options',
-      undefined,
-      [
-        {
-          text: 'Edit',
-          onPress: () =>
-            navigation.navigate('EditList', { id: listId }),
-        },
-        {
-          text: 'Select',
-          onPress: () => enterSelectionMode(listId),
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    setActiveListId(listId);
+    setActionSheetVisible(true);
+  };
+
+  const closeSheet = () => {
+    setActionSheetVisible(false);
+    setActiveListId(null);
+  };
+
+  const handleEdit = () => {
+    if (!activeListId) return;
+    closeSheet();
+    navigation.navigate('EditList', { id: activeListId });
+  };
+
+  const handleSelect = () => {
+    if (!activeListId) return;
+    closeSheet();
+    enterSelectionMode(activeListId);
   };
 
   return (
     <View style={styles.container}>
-      {/* Top bar */}
-      <View style={styles.topBar}>
-        <Text style={styles.logout} onPress={logout}>
-          Logout
-        </Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Lists</Text>
+        <Pressable onPress={logout}>
+          <Text style={styles.logout}>Logout</Text>
+        </Pressable>
       </View>
-
-      {/* Add List */}
-      <Pressable
-        style={styles.addButton}
-        onPress={() => navigation.navigate('AddList')}
-      >
-        <Text style={styles.addButtonText}>ADD LIST</Text>
-      </Pressable>
 
       {/* Selection bar */}
       {selectionMode && (
@@ -176,17 +178,18 @@ const HomeScreen = ({ navigation }: Props) => {
         </View>
       )}
 
-      {/* Content */}
+      {/* List content */}
       {lists.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>
-            No lists yet. Create your first one.
+            No lists yet. Tap + to create one.
           </Text>
         </View>
       ) : (
         <FlatList
           data={lists}
           keyExtractor={item => item.id}
+          contentContainerStyle={{ paddingBottom: 80 }}
           renderItem={({ item }) => (
             <ListItem
               list={item}
@@ -203,6 +206,22 @@ const HomeScreen = ({ navigation }: Props) => {
           )}
         />
       )}
+
+      {/* Floating Add Button */}
+      <Pressable
+        style={styles.fab}
+        onPress={() => navigation.navigate('AddList')}
+      >
+        <Text style={styles.fabText}>+</Text>
+      </Pressable>
+
+      {/* Bottom action sheet */}
+      <ListActionSheet
+        visible={actionSheetVisible}
+        onClose={closeSheet}
+        onEdit={handleEdit}
+        onSelect={handleSelect}
+      />
     </View>
   );
 };
@@ -214,27 +233,22 @@ export default HomeScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 12,
+    backgroundColor: '#f5f6fa',
+    paddingHorizontal: 12,
   },
-  topBar: {
+  header: {
+    height: 56,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 6,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
   },
   logout: {
     color: '#d32f2f',
-    fontWeight: 'bold',
-  },
-  addButton: {
-    backgroundColor: '#2196F3',
-    padding: 14,
-    borderRadius: 6,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    fontWeight: '500',
   },
   selectionBar: {
     flexDirection: 'row',
@@ -252,5 +266,22 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#777',
     fontSize: 16,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#2196F3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 32,
+    lineHeight: 32,
   },
 });

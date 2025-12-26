@@ -3,11 +3,10 @@ import {
   View,
   Text,
   TextInput,
-  Button,
+  Pressable,
   StyleSheet,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-
 import { AuthStackParamList } from '../navigation/AuthStack';
 import { useAuth } from '../context/AuthContext';
 
@@ -18,55 +17,48 @@ const LoginScreen = ({ navigation }: Props) => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
   const handleLogin = async () => {
-    setError(null);
-    setLoading(true);
-
     try {
-      await login(email.trim(), password);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      await login(email, password);
+    } catch (e: any) {
+      setError(e.message);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
+      <Text style={styles.title}>Welcome back</Text>
 
       <TextInput
+        style={styles.input}
         placeholder="Email"
         autoCapitalize="none"
-        keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
-        style={styles.input}
       />
 
       <TextInput
+        style={styles.input}
         placeholder="Password"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
-        style={styles.input}
       />
 
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Button
-        title={loading ? 'Logging in...' : 'Login'}
-        onPress={handleLogin}
-        disabled={loading}
-      />
+      <Pressable style={styles.primaryButton} onPress={handleLogin}>
+        <Text style={styles.primaryText}>Login</Text>
+      </Pressable>
 
-      <Button
-        title="Go to Signup"
-        onPress={() => navigation.navigate('Signup')}
-      />
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>Don’t have an account?</Text>
+        <Pressable onPress={() => navigation.navigate('Signup')}>
+          <Text style={styles.link}>Sign up</Text>
+        </Pressable>
+      </View>
     </View>
   );
 };
@@ -76,24 +68,53 @@ export default LoginScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
     padding: 24,
+    justifyContent: 'center',
+    backgroundColor: '#fff',
   },
   title: {
-    fontSize: 24,
-    marginBottom: 24,
+    fontSize: 26,
+    fontWeight: '600',
+    marginBottom: 32,
     textAlign: 'center',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    marginBottom: 12,
-    padding: 12,
-    borderRadius: 4,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    marginBottom: 14,
   },
   error: {
-    color: 'red',
+    color: '#d32f2f',
     marginBottom: 12,
     textAlign: 'center',
+  },
+  primaryButton: {
+    backgroundColor: '#2196F3',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  primaryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  footer: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  footerText: {
+    color: '#555',
+    marginBottom: 6,
+  },
+  link: {
+    color: '#2196F3',
+    fontWeight: '600',
+    fontSize: 15,
   },
 });
