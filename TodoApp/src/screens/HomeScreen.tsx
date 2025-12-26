@@ -2,35 +2,44 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  Button,
   FlatList,
   StyleSheet,
-  TouchableOpacity,
+  Alert,
+  Pressable,
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { AppStackParamList } from '../navigation/AppStack';
+import ListItem from '../components/ListItem';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Home'>;
 
-type List = {
+export type Task = {
   id: string;
   title: string;
-  taskCount: number;
+  done: boolean;
+};
+
+export type List = {
+  id: string;
+  title: string;
+  tasks: Task[];
 };
 
 const HomeScreen = ({ navigation }: Props) => {
   const [lists, setLists] = useState<List[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [expandedListId, setExpandedListId] = useState<string | null>(null);
+
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  /* ---------------- Firestore subscription ---------------- */
 
   useEffect(() => {
     const user = auth().currentUser;
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+    if (!user) return;
 
     const unsubscribe = firestore()
       .collection('lists')
@@ -38,50 +47,161 @@ const HomeScreen = ({ navigation }: Props) => {
       .orderBy('createdAt', 'desc')
       .onSnapshot(
         snapshot => {
-          if (!snapshot) {
-            setLists([]);
-            setLoading(false);
-            return;
-          }
-
           const data: List[] = snapshot.docs.map(doc => {
             const d = doc.data();
             return {
               id: doc.id,
               title: d.title,
-              taskCount: Array.isArray(d.tasks) ? d.tasks.length : 0,
+              tasks: d.tasks ?? [],
             };
           });
-
           setLists(data);
-          setLoading(false);
         },
         error => {
           console.error('Firestore read error:', error);
-          setLoading(false);
         }
       );
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
+
+  /* ---------------- Helpers ---------------- */
+
+  const toggleExpand = (id: string) => {
+    setExpandedListId(prev => (prev === id ? null : id));
+  };
+
+  const toggleTaskDone = async (listId: string, taskId: string) => {
+    const list = lists.find(l => l.id === listId);
+    if (!list) return;
+
+    const updatedTasks = list.tasks.map(task =>
+      task.id === taskId
+        ? { ...task, done: !task.done }
+        : task
+    );
+
+    await firestore()
+      .collection('lists')
+      .doc(listId)
+      .update({ tasks: updatedTasks });
+  };
+
+  const enterSelectionMode = (id: string) => {
+    setSelectionMode(true);
+    setSelectedIds(new Set([id]));
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+
+      if (next.size === 0) {
+        setSelectionMode(false);
+      }
+
+      return next;
+    });
+  };
+
+  const deleteSelected = async () => {
+    Alert.alert(
+      'Delete Lists',
+      `Delete ${selectedIds.size} list(s)?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const batch = firestore().batch();
+            selectedIds.forEach(id => {
+              batch.delete(
+                firestore().collection('lists').doc(id)
+              );
+            });
+            await batch.commit();
+            exitSelectionMode();
+          },
+        },
+      ]
+    );
+  };
+
+  const openMenu = (listId: string) => {
+    Alert.alert(
+      'Options',
+      undefined,
+      [
+        {
+          text: 'Edit',
+          onPress: () =>
+            navigation.navigate('EditList', { id: listId }),
+        },
+        {
+          text: 'Select',
+          onPress: () => enterSelectionMode(listId),
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  /* ---------------- UI ---------------- */
 
   return (
     <View style={styles.container}>
-      <Button title="Add List" onPress={() => navigation.navigate('AddList')} />
+      {/* Add List button — ALWAYS visible */}
+      <Pressable
+        style={styles.addButton}
+        onPress={() => navigation.navigate('AddList')}
+      >
+        <Text style={styles.addButtonText}>ADD LIST</Text>
+      </Pressable>
 
-      {loading ? (
-        <Text style={styles.loading}>Loading...</Text>
-      ) : lists.length === 0 ? (
-        <Text style={styles.empty}>No lists yet. Add one!</Text>
+      {/* Selection bar */}
+      {selectionMode && (
+        <View style={styles.selectionBar}>
+          <Text>{selectedIds.size} selected</Text>
+          <Text style={styles.action} onPress={deleteSelected}>
+            Delete
+          </Text>
+          <Text style={styles.action} onPress={exitSelectionMode}>
+            Cancel
+          </Text>
+        </View>
+      )}
+
+      {/* Empty state OR list */}
+      {lists.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>
+            No lists yet. Create your first one.
+          </Text>
+        </View>
       ) : (
         <FlatList
           data={lists}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.listItem}>
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.meta}>{item.taskCount} tasks</Text>
-            </TouchableOpacity>
+            <ListItem
+              list={item}
+              expanded={expandedListId === item.id}
+              selected={selectedIds.has(item.id)}
+              selectionMode={selectionMode}
+              onToggleExpand={() => toggleExpand(item.id)}
+              onToggleTask={taskId =>
+                toggleTaskDone(item.id, taskId)
+              }
+              onToggleSelect={() => toggleSelection(item.id)}
+              onOpenMenu={() => openMenu(item.id)}
+            />
           )}
         />
       )}
@@ -91,31 +211,39 @@ const HomeScreen = ({ navigation }: Props) => {
 
 export default HomeScreen;
 
+/* ---------------- Styles ---------------- */
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: 12,
   },
-  loading: {
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  empty: {
-    marginTop: 16,
-    textAlign: 'center',
-    color: '#777',
-  },
-  listItem: {
+  addButton: {
+    backgroundColor: '#2196F3',
     padding: 14,
-    borderBottomWidth: 1,
-    borderColor: '#eee',
+    borderRadius: 6,
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  title: {
+  addButtonText: {
+    color: '#fff',
     fontWeight: 'bold',
-    fontSize: 16,
   },
-  meta: {
-    fontSize: 12,
-    color: '#555',
+  selectionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  action: {
+    fontWeight: 'bold',
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    color: '#777',
+    fontSize: 16,
   },
 });
