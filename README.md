@@ -7,7 +7,7 @@ Features include authentication, list management, task tracking, deadlines, and 
 
 A short demo video showcasing how the application works:
 
-👉 [![Demo Video Link](assets/demo.png)](https://youtu.be/VRdH5dWKxJE)
+[![Demo Video Link](assets/demo.png)](https://youtu.be/VRdH5dWKxJE)
 
 ## Features
 
